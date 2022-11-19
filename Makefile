@@ -15,3 +15,8 @@ run:
 	make compile
 	mkdir -p experiments/level_$L
 	cd $(PWD)/experiments/level_$L && $(PWD)/build/mini_aevol_cpu -s 42 -p $L
+
+prof:
+	make compile
+	mkdir -p experiments/level_$L
+	cd $(PWD)/experiments/level_$L && arch -arm64 xctrace record --template 'Time Profiler' --target-stdout - --launch -- $(PWD)/build/mini_aevol_cpu -s 42 -p $L
