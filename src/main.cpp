@@ -72,6 +72,7 @@ void print_help(char *prog_path)
     printf("  -b, --backup_step BACKUP_STEP\tDo a simulation backup/checkpoint every BACKUP_STEP\n");
     printf("  -r, --resume RESUME_STEP\tResume the simulation from the RESUME_STEP generations\n");
     printf("  -s, --seed SEED\tChange the seed for the pseudo random generator\n");
+    printf("  -p, --parallelization PARALLELIZATION\tParallelization level\n");
 }
 
 int main(int argc, char *argv[])
@@ -84,9 +85,9 @@ int main(int argc, char *argv[])
     int resume = -1;
     int backup_step = -1;
     int seed = -1;
-    string optimization = "openmp";
+    int level = -1;
 
-    const char *options_list = "Hn:w:h:m:g:b:r:s:o";
+    const char *options_list = "Hn:w:h:m:g:b:r:s:p:";
     static struct option long_options_list[] = {
         // Print help
         {"help", no_argument, NULL, 'H'},
@@ -106,8 +107,8 @@ int main(int argc, char *argv[])
         {"backup_step", required_argument, NULL, 'b'},
         // Seed
         {"seed", required_argument, NULL, 's'},
-        // Stats file
-        {"optimization", required_argument, NULL, 'o'},
+        // Parallelization level
+        {"parallelization", required_argument, NULL, 'p'},
         {0, 0, 0, 0}};
 
     // -------------------------------------------------------------------------
@@ -164,10 +165,9 @@ int main(int argc, char *argv[])
             nbstep = atoi(optarg);
             break;
         }
-        case 'o':
+        case 'p':
         {
-            printf("Optimization : %s", optarg);
-            optimization = optarg;
+            level = atoi(optarg);
             break;
         }
         default:
@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
     if (resume >= 0)
     {
         if ((width != -1) || (height != -1) || (mutation_rate != -1.0) || (genome_size != -1) ||
-            (backup_step != -1) || (seed != -1))
+            (backup_step != -1) || (seed != -1) || (level != -1))
         {
             printf("Parameter(s) can not change during the simulation (i.e. when resuming a simulation, parameter(s) can not change)\n");
             exit(EXIT_FAILURE);
@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
     Abstract_ExpManager *exp_manager;
     if (resume == -1)
     {
-        exp_manager = new ExpManager(height, width, seed, mutation_rate, genome_size, backup_step, optimization);
+        exp_manager = new ExpManager(height, width, seed, mutation_rate, genome_size, backup_step, level);
     }
     else
     {

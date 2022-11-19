@@ -45,7 +45,7 @@ using namespace std;
 class ExpManager : public Abstract_ExpManager {
 public:
     ExpManager(int grid_height, int grid_width, int seed, double mutation_rate, int init_length_dna,
-               int backup_step, string optimization);
+               int backup_step, int level);
 
     explicit ExpManager(int time);
 
@@ -105,7 +105,7 @@ private:
 
     double *target;
 
-    string optimization_ = "openmp";
+    int level_ = 0;
     Stats *stats_best = nullptr;
     Stats *stats_mean = nullptr;
 

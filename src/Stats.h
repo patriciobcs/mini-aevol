@@ -38,7 +38,7 @@
  */
 class Stats {
 public:
-    Stats(int generation, bool best_or_not, std::string optimization);
+    Stats(int generation, bool best_or_not);
 
     ~Stats() {
         if (is_indiv_) {

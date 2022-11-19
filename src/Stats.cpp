@@ -36,9 +36,11 @@ using namespace std;
  * @param generation : Create statistics beginning from this generation (or resuming from this generation)
  * @param best_or_not : Statistics for the best organisms or mean of all the organisms
  */
-Stats::Stats(int generation, bool best_or_not, string optimization) {
+Stats::Stats(int generation, bool best_or_not) {
     is_indiv_ = best_or_not;
     generation_ = generation;
+
+    string optimization = "";
 
     pop_size_ = 0;
 

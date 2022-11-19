@@ -51,10 +51,9 @@ using namespace std;
  * @param backup_step : How much often checkpoint must be done
  */
 ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutation_rate, int init_length_dna,
-                       int backup_step, string optimization)
+                       int backup_step, int level)
         : seed_(seed), rng_(new std::mt19937_64(seed))  {
-
-    optimization_ = optimization;
+    level_ = level;
 
     // Initializing the data structure
     grid_height_ = grid_height;
@@ -79,6 +78,7 @@ ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutatio
 
     target = new double[FUZZY_SAMPLING];
     double geometric_area = 0.0;
+    #pragma omp parallel for reduction(+:geometric_area) shared(target, g1, g2, g3, FUZZY_SAMPLING) if (level_ > 0)
     for (int i = 0; i < FUZZY_SAMPLING; i++) {
         double pt_i = ((double) i) / (double) FUZZY_SAMPLING;
 
@@ -101,6 +101,7 @@ ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutatio
 
 
     // Initializing the PRNGs
+    #pragma omp parallel for shared(dna_mutator_array_) if (level_ > 0)
     for (int indiv_id = 0; indiv_id < nb_indivs_; ++indiv_id) {
         dna_mutator_array_[indiv_id] = nullptr;
     }
@@ -430,8 +431,8 @@ void ExpManager::run_evolution(int nb_gen) {
     FLUSH_TRACES(0)
 
     // Stats
-    stats_best = new Stats(AeTime::time(), true, optimization_);
-    stats_mean = new Stats(AeTime::time(), false, optimization_);
+    stats_best = new Stats(AeTime::time(), true);
+    stats_mean = new Stats(AeTime::time(), false);
 
     printf("Running evolution from %d to %d\n", AeTime::time(), AeTime::time() + nb_gen);
 
@@ -443,7 +444,8 @@ void ExpManager::run_evolution(int nb_gen) {
         printf("Generation %d : Best individual fitness %e\n", AeTime::time(), best_indiv->fitness);
         FLUSH_TRACES(gen)
 
-        #pragma omp parallel for shared(dna_mutator_array_)
+        // PL1: Parallel cleaning of the individuals after each iteration
+        #pragma omp parallel for shared(dna_mutator_array_) if (level_ > 0)
         for (int indiv_id = 0; indiv_id < nb_indivs_; ++indiv_id) {
             delete dna_mutator_array_[indiv_id];
             dna_mutator_array_[indiv_id] = nullptr;
