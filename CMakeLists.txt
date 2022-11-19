@@ -4,8 +4,11 @@ project(pdc_mini_aevol)
 set(CMAKE_CXX_STANDARD 14)
 
 set(DO_TRACES ON CACHE BOOL "Whether to enable the Traces library")
-set(USE_OMP OFF CACHE BOOL "Whether to enable OpenMP parallelization")
+set(USE_OMP ON CACHE BOOL "Whether to enable OpenMP parallelization")
 set(USE_CUDA OFF CACHE BOOL "Whether to enable CUDA parallelization")
+
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
 
 if ( DO_TRACES )
     add_definitions(-DTRACES)
@@ -13,6 +16,20 @@ if ( DO_TRACES )
 endif ( DO_TRACES )
 
 if ( USE_OMP )
+    if ( APPLE )
+        if(CMAKE_C_COMPILER_ID MATCHES "Clang\$")
+            set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp")
+            set(OpenMP_C_LIB_NAMES "omp")
+            set(OpenMP_omp_LIBRARY omp)
+        endif()
+
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang\$")
+            set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp")
+            set(OpenMP_CXX_LIB_NAMES "omp")
+            set(OpenMP_omp_LIBRARY omp)
+        endif()
+    endif()
+
     find_package(OpenMP REQUIRED)
 endif ( USE_OMP )
 

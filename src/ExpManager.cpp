@@ -443,6 +443,7 @@ void ExpManager::run_evolution(int nb_gen) {
         printf("Generation %d : Best individual fitness %e\n", AeTime::time(), best_indiv->fitness);
         FLUSH_TRACES(gen)
 
+        #pragma omp parallel for shared(dna_mutator_array_)
         for (int indiv_id = 0; indiv_id < nb_indivs_; ++indiv_id) {
             delete dna_mutator_array_[indiv_id];
             dna_mutator_array_[indiv_id] = nullptr;
