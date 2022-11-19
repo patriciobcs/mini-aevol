@@ -26,6 +26,9 @@
 
 
 #include "Stats.h"
+#include <string>
+
+using namespace std;
 
 /**
  * Create the data structure and open the file for the statistics of a simulation
@@ -33,7 +36,7 @@
  * @param generation : Create statistics beginning from this generation (or resuming from this generation)
  * @param best_or_not : Statistics for the best organisms or mean of all the organisms
  */
-Stats::Stats(int generation, bool best_or_not) {
+Stats::Stats(int generation, bool best_or_not, string optimization) {
     is_indiv_ = best_or_not;
     generation_ = generation;
 
@@ -52,11 +55,14 @@ Stats::Stats(int generation, bool best_or_not) {
     nb_mut_ = 0;
     nb_switch_ = 0;
 
+    string best_csv = "stats/" + optimization + "_best.csv";
+    string mean_csv = "stats/" + optimization + "_mean.csv";
+
     if (generation_ == 0) {
         if (is_indiv_)
-            statfile_best_.open("stats/stats_simd_best.csv", std::ofstream::trunc);
+            statfile_best_.open(best_csv, std::ofstream::trunc);
         else
-            statfile_mean_.open("stats/stats_simd_mean.csv", std::ofstream::trunc);
+            statfile_mean_.open(mean_csv, std::ofstream::trunc);
 
         if (is_indiv_) {
             statfile_best_ << "Generation" << "," << "fitness" << "," << "metabolic_error" << "," <<
@@ -77,11 +83,11 @@ Stats::Stats(int generation, bool best_or_not) {
         std::ifstream tmp_best;
 
         if (is_indiv_) {
-            tmp_best.open("stats/stats_simd_best.csv", std::ifstream::in);
-            statfile_best_.open("stats/stats_simd_best.csv.tmp", std::ofstream::trunc);
+            tmp_best.open(best_csv, std::ifstream::in);
+            statfile_best_.open(best_csv + ".tmp", std::ofstream::trunc);
         } else {
-            tmp_mean.open("stats/stats_simd_mean.csv", std::ifstream::in);
-            statfile_mean_.open("stats/stats_simd_mean.csv.tmp", std::ofstream::trunc);
+            tmp_mean.open(mean_csv, std::ifstream::in);
+            statfile_mean_.open(mean_csv + ".tmp", std::ofstream::trunc);
         }
 
         std::string str;
@@ -104,14 +110,14 @@ Stats::Stats(int generation, bool best_or_not) {
         }
 
         if (is_indiv_) {
-            statfile_best_.open("stats/stats_simd_best.csv", std::ofstream::trunc);
+            statfile_best_.open(best_csv, std::ofstream::trunc);
             tmp_best.close();
-            tmp_best.open("stats/stats_simd_best.csv.tmp", std::ifstream::in);
+            tmp_best.open(best_csv + ".tmp", std::ifstream::in);
             tmp_best.seekg(0, std::ios::beg);
         } else {
-            statfile_mean_.open("stats/stats_simd_mean.csv", std::ofstream::trunc);
+            statfile_mean_.open(mean_csv, std::ofstream::trunc);
             tmp_mean.close();
-            tmp_mean.open("stats/stats_simd_mean.csv.tmp", std::ifstream::in);
+            tmp_mean.open(mean_csv + ".tmp", std::ifstream::in);
             tmp_mean.seekg(0, std::ios::beg);
         }
 
@@ -128,8 +134,8 @@ Stats::Stats(int generation, bool best_or_not) {
         tmp_best.close();
         tmp_mean.close();
         is_indiv_
-        ? std::remove("stats/stats_simd_best.csv.tmp")
-        : std::remove("stats/stats_simd_mean.csv.tmp");
+        ? remove((best_csv + ".tmp").c_str())
+        : remove((mean_csv + ".tmp").c_str());
     }
 }
 

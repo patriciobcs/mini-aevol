@@ -29,10 +29,10 @@
 #include <iostream>
 #include <getopt.h>
 #include <cstring>
+#include <string>
 
-#ifdef USE_CUDA
-#include "cuda/cuExpManager.h"
-#endif
+using namespace std;
+
 #include "Abstract_ExpManager.h"
 #include "ExpManager.h"
 
@@ -83,8 +83,9 @@ int main(int argc, char* argv[]) {
     int resume = -1;
     int backup_step = -1;
     int seed = -1;
+    string optimization = "openmp";
 
-    const char * options_list = "Hn:w:h:m:g:b:r:s:";
+    const char * options_list = "Hn:w:h:m:g:b:r:s:o";
     static struct option long_options_list[] = {
             // Print help
             { "help",     no_argument,        NULL, 'H' },
@@ -104,6 +105,8 @@ int main(int argc, char* argv[]) {
             { "backup_step", required_argument,  NULL, 'b' },
             // Seed
             { "seed", required_argument,  NULL, 's' },
+            // Stats file
+            { "optimization", required_argument,  NULL, 'o' },
             { 0, 0, 0, 0 }
     };
 
@@ -152,6 +155,11 @@ int main(int argc, char* argv[]) {
                 nbstep = atoi(optarg);
                 break;
             }
+            case 'o' : {
+                printf("Optimization : %s", optarg);
+                optimization = optarg;
+                break;
+            }
             default : {
                 // An error message is printed in getopt_long, we just need to exit
                 printf("Error unknown parameter\n");
@@ -159,10 +167,6 @@ int main(int argc, char* argv[]) {
             }
         }
     }
-
-#ifdef USE_CUDA
-    printf("Activate CUDA\n");
-#endif
 
     printf("Start ExpManager\n");
 
@@ -185,18 +189,11 @@ int main(int argc, char* argv[]) {
 
     Abstract_ExpManager *exp_manager;
     if (resume == -1) {
-        exp_manager = new ExpManager(height, width, seed, mutation_rate, genome_size, backup_step);
+        exp_manager = new ExpManager(height, width, seed, mutation_rate, genome_size, backup_step, optimization);
     } else {
         printf("Resuming...\n");
         exp_manager = new ExpManager(resume);
     }
-
-#ifdef USE_CUDA
-    // Not very clean but the goal is to re-use the initialization on the host to transfer data to device
-    auto* tmp = dynamic_cast<ExpManager *>(exp_manager);
-    exp_manager = new cuExpManager(tmp);
-    delete tmp;
-#endif
 
     exp_manager->run_evolution(nbstep);
 

@@ -27,9 +27,12 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <random>
+
+using namespace std;
 
 #include "Abstract_ExpManager.h"
-#include "Threefry.h"
 #include "DnaMutator.h"
 #include "Organism.h"
 #include "Stats.h"
@@ -40,12 +43,9 @@
  * It is also that class that implements checkpointing and restore mechanisms.
  */
 class ExpManager : public Abstract_ExpManager {
-#ifdef USE_CUDA
-    friend class cuExpManager;
-#endif
 public:
     ExpManager(int grid_height, int grid_width, int seed, double mutation_rate, int init_length_dna,
-               int backup_step);
+               int backup_step, string optimization);
 
     explicit ExpManager(int time);
 
@@ -64,6 +64,33 @@ private:
 
     void selection(int indiv_id) const;
 
+    int32_t roulette_random(double* probs, int32_t nb_elts, bool verbose = false) const
+    {
+        double pick_one = 0.0;
+
+        std::uniform_real_distribution<> distrib(0,1);
+
+        while (pick_one == 0.0)
+        {
+            pick_one = distrib((*rng_));
+            //pickones.push_back(pick_one);
+            //if (verbose) printf("pick one : %f\n",pick_one);
+        }
+
+        int32_t found_org = 0;
+
+        pick_one -= probs[0];
+        while (pick_one > 0)
+        {
+            assert(found_org<nb_elts-1);
+            //pickones3.push_back(probs[found_org+1]);
+
+            pick_one -= probs[++found_org];
+            //pickones2.push_back(pick_one);
+        }
+        return found_org;
+    }
+
     std::shared_ptr<Organism> *internal_organisms_;
     std::shared_ptr<Organism> *prev_internal_organisms_;
     std::shared_ptr<Organism> best_indiv;
@@ -74,15 +101,17 @@ private:
     int nb_indivs_;
 
     int seed_;
-    std::unique_ptr<Threefry> rng_;
+    std::shared_ptr<std::mt19937_64> rng_;
 
     double *target;
 
+    string optimization_ = "openmp";
     Stats *stats_best = nullptr;
     Stats *stats_mean = nullptr;
 
     int grid_height_;
     int grid_width_;
+
 
     double mutation_rate_;
 

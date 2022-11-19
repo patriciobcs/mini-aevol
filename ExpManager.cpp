@@ -28,6 +28,7 @@
 
 #include <iostream>
 #include <zlib.h>
+#include <string>
 
 using namespace std;
 
@@ -50,8 +51,11 @@ using namespace std;
  * @param backup_step : How much often checkpoint must be done
  */
 ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutation_rate, int init_length_dna,
-                       int backup_step)
-        : seed_(seed), rng_(new Threefry(grid_width, grid_height, seed)) {
+                       int backup_step, string optimization)
+        : seed_(seed), rng_(new std::mt19937_64(seed))  {
+
+    optimization_ = optimization;
+
     // Initializing the data structure
     grid_height_ = grid_height;
     grid_width_ = grid_width;
@@ -105,7 +109,7 @@ ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutatio
     double r_compare = 0;
 
     while (r_compare >= 0) {
-        auto random_organism = std::make_shared<Organism>(init_length_dna, rng_->gen(0, Threefry::MUTATION));
+        auto random_organism = std::make_shared<Organism>(init_length_dna, rng_);
         random_organism->locate_promoters();
         random_organism->evaluate(target);
         internal_organisms_[0] = random_organism;
@@ -161,7 +165,7 @@ void ExpManager::save(int t) const {
 
     char exp_backup_file_name[255];
 
-    sprintf(exp_backup_file_name, "backup/backup_%d.zae", t);
+    snprintf(exp_backup_file_name, 255, "backup/backup_%d.zae", t);
 
     // -------------------------------------------------------------------------
     // Open backup files
@@ -200,7 +204,7 @@ void ExpManager::save(int t) const {
         prev_internal_organisms_[indiv_id]->save(exp_backup_file);
     }
 
-    rng_->save(exp_backup_file);
+    //rng_->save(exp_backup_file);
 
     if (gzclose(exp_backup_file) != Z_OK) {
         cerr << "Error while closing backup file" << endl;
@@ -216,7 +220,7 @@ void ExpManager::load(int t) {
 
     char exp_backup_file_name[255];
 
-    sprintf(exp_backup_file_name, "backup/backup_%d.zae", t);
+    snprintf(exp_backup_file_name, 255, "backup/backup_%d.zae", t);
 
     // -------------------------------------------------------------------------
     // Open backup files
@@ -268,8 +272,9 @@ void ExpManager::load(int t) {
                 std::make_shared<Organism>(exp_backup_file);
     }
 
-    rng_ = std::move(std::make_unique<Threefry>(grid_width_, grid_height_, exp_backup_file));
-    seed_ = rng_->get_seed();
+    //rng_ = std::move(std::make_unique<Threefry>(grid_width_, grid_height_, exp_backup_file));
+    seed_ = 1892873; //rng_->get_seed();
+    rng_ = std::move(std::make_unique<std::mt19937_64>(seed_));
 
     if (gzclose(exp_backup_file) != Z_OK) {
         cerr << "Error while closing backup file" << endl;
@@ -307,6 +312,7 @@ void ExpManager::selection(int indiv_id) const {
 
     int cur_x, cur_y;
 
+    // This for loop has only 9 iterations so it is not worth to parallelize it
     for (int8_t i = -1; i < NEIGHBORHOOD_WIDTH - 1; i++) {
         for (int8_t j = -1; j < NEIGHBORHOOD_HEIGHT - 1; j++) {
             cur_x = (x + i + grid_width_) % grid_width_;
@@ -319,12 +325,12 @@ void ExpManager::selection(int indiv_id) const {
         }
     }
 
+    // This for loop has only 9 iterations so it is not worth to parallelize it
     for (int8_t i = 0; i < NEIGHBORHOOD_SIZE; i++) {
         probs[i] = local_fit_array[i] / sum_local_fit;
     }
 
-    auto rng = std::move(rng_->gen(indiv_id, Threefry::REPROD));
-    int found_org = rng.roulette_random(probs, NEIGHBORHOOD_SIZE);
+    int found_org = roulette_random(probs, NEIGHBORHOOD_SIZE);
 
     int x_offset = (found_org / NEIGHBORHOOD_WIDTH) - 1;
     int y_offset = (found_org % NEIGHBORHOOD_HEIGHT) - 1;
@@ -339,10 +345,10 @@ void ExpManager::selection(int indiv_id) const {
  * @param indiv_id : Organism unique id
  */
 void ExpManager::prepare_mutation(int indiv_id) const {
-    auto *rng = new Threefry::Gen(std::move(rng_->gen(indiv_id, Threefry::MUTATION)));
+    //auto *rng = new Threefry::Gen(std::move(rng_->gen(indiv_id, Threefry::MUTATION)));
     const shared_ptr<Organism> &parent = prev_internal_organisms_[next_generation_reproducer_[indiv_id]];
     dna_mutator_array_[indiv_id] = new DnaMutator(
-            rng,
+            rng_,
             parent->length(),
             mutation_rate_);
     dna_mutator_array_[indiv_id]->generate_mutations();
@@ -424,8 +430,8 @@ void ExpManager::run_evolution(int nb_gen) {
     FLUSH_TRACES(0)
 
     // Stats
-    stats_best = new Stats(AeTime::time(), true);
-    stats_mean = new Stats(AeTime::time(), false);
+    stats_best = new Stats(AeTime::time(), true, optimization_);
+    stats_mean = new Stats(AeTime::time(), false, optimization_);
 
     printf("Running evolution from %d to %d\n", AeTime::time(), AeTime::time() + nb_gen);
 

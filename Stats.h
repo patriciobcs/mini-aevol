@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <fstream>
 #include <memory>
+#include <string>
 
 #include "Organism.h"
 
@@ -37,7 +38,7 @@
  */
 class Stats {
 public:
-    Stats(int generation, bool best_or_not);
+    Stats(int generation, bool best_or_not, std::string optimization);
 
     ~Stats() {
         if (is_indiv_) {
