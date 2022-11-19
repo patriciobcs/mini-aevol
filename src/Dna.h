@@ -10,7 +10,7 @@
 
 #include<bits/stdc++.h>
 
-#include "aevol_constants.h"
+#include "lib/aevol_constants.h"
 
 class Dna {
 

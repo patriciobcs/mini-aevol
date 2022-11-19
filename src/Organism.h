@@ -35,11 +35,11 @@
 #include <cstdint>
 #include<bits/stdc++.h>
 
-#include "RNA.h"
-#include "Protein.h"
+#include "lib/RNA.h"
+#include "lib/Protein.h"
 #include "Dna.h"
 #include "MutationEvent.h"
-#include "aevol_constants.h"
+#include "lib/aevol_constants.h"
 
 /**
  * Class that implements an organism and its related DNAs, RNAs, Protein and Phenotype

@@ -34,10 +34,10 @@ using namespace std;
 
 #include "ExpManager.h"
 #include "AeTime.h"
-#include "Gaussian.h"
+#include "lib/Gaussian.h"
 
 // For time tracing
-#include "Timetracer.h"
+#include "lib/Timetracer.h"
 
 /**
  * Constructor for initializing a new simulation
