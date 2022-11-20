@@ -78,7 +78,7 @@ ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutatio
 
     target = new double[FUZZY_SAMPLING];
     double geometric_area = 0.0;
-    #pragma omp parallel for reduction(+:geometric_area) shared(target, g1, g2, g3, FUZZY_SAMPLING) if (level_ > 0)
+
     for (int i = 0; i < FUZZY_SAMPLING; i++) {
         double pt_i = ((double) i) / (double) FUZZY_SAMPLING;
 
@@ -101,7 +101,6 @@ ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutatio
 
 
     // Initializing the PRNGs
-    #pragma omp parallel for shared(dna_mutator_array_) if (level_ > 0)
     for (int indiv_id = 0; indiv_id < nb_indivs_; ++indiv_id) {
         dna_mutator_array_[indiv_id] = nullptr;
     }
@@ -371,6 +370,7 @@ void ExpManager::prepare_mutation(int indiv_id) const {
 void ExpManager::run_a_step() {
 
     // Running the simulation process for each organism
+    #pragma omp parallel for shared(dna_mutator_array_) if (level_ > 0) num_threads(4)
     for (int indiv_id = 0; indiv_id < nb_indivs_; indiv_id++) {
         selection(indiv_id);
         prepare_mutation(indiv_id);
@@ -383,21 +383,28 @@ void ExpManager::run_a_step() {
     }
 
     // Swap Population
+    #pragma omp parallel for shared(prev_internal_organisms_, internal_organisms_) if (level_ > 1) num_threads(4)
     for (int indiv_id = 0; indiv_id < nb_indivs_; indiv_id++) {
         prev_internal_organisms_[indiv_id] = internal_organisms_[indiv_id];
         internal_organisms_[indiv_id] = nullptr;
     }
 
     // Search for the best
-    double best_fitness = prev_internal_organisms_[0]->fitness;
-    int idx_best = 0;
+    struct Case { float value; int index; };    
+    #pragma omp declare reduction(best : struct Case : omp_out = omp_in.value > omp_out.value ? omp_in : omp_out)
+
+    struct Case best_fitness; 
+    best_fitness.value = prev_internal_organisms_[0]->fitness;
+    best_fitness.index = 0;
+
+    #pragma omp parallel for reduction(best:best_fitness) shared(prev_internal_organisms_, internal_organisms_) if (level_ > 1) num_threads(4)
     for (int indiv_id = 1; indiv_id < nb_indivs_; indiv_id++) {
-        if (prev_internal_organisms_[indiv_id]->fitness > best_fitness) {
-            idx_best = indiv_id;
-            best_fitness = prev_internal_organisms_[indiv_id]->fitness;
+        if (prev_internal_organisms_[indiv_id]->fitness > best_fitness.value) {
+            best_fitness.index = indiv_id;
+            best_fitness.value = prev_internal_organisms_[indiv_id]->fitness;
         }
     }
-    best_indiv = prev_internal_organisms_[idx_best];
+    best_indiv = prev_internal_organisms_[best_fitness.index];
 
     // Stats
     stats_best->reinit(AeTime::time());
@@ -444,8 +451,6 @@ void ExpManager::run_evolution(int nb_gen) {
         printf("Generation %d : Best individual fitness %e\n", AeTime::time(), best_indiv->fitness);
         FLUSH_TRACES(gen)
 
-        // PL1: Parallel cleaning of the individuals after each iteration
-        #pragma omp parallel for shared(dna_mutator_array_) if (level_ > 0)
         for (int indiv_id = 0; indiv_id < nb_indivs_; ++indiv_id) {
             delete dna_mutator_array_[indiv_id];
             dna_mutator_array_[indiv_id] = nullptr;
