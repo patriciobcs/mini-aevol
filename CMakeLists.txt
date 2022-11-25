@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 project(pdc_mini_aevol)
 
+
+
 set(CMAKE_CXX_STANDARD 14)
 
 set(DO_TRACES ON CACHE BOOL "Whether to enable the Traces library")
@@ -9,6 +11,9 @@ set(USE_CUDA OFF CACHE BOOL "Whether to enable CUDA parallelization")
 
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
+
+set(CPPFLAGS "-I/opt/homebrew/opt/libomp/include")
+set(LDFLAGS "-L/opt/homebrew/opt/libomp/lib")
 
 if ( DO_TRACES )
     add_definitions(-DTRACES)

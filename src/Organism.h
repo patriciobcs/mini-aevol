@@ -47,7 +47,7 @@
 class Organism {
 
 public:
-    Organism(int length, std::shared_ptr<std::mt19937_64> rng);
+    Organism(int length, std::shared_ptr<std::mt19937_64> rng, int level);
 
     explicit Organism(const std::shared_ptr<Organism> &clone);
 
@@ -103,6 +103,8 @@ public:
 
     int nb_swi_ = 0;
     int nb_mut_ = 0;
+
+    int level_ = 0;
 
 private:
     // Evaluation

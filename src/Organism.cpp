@@ -36,10 +36,11 @@ using namespace std;
  *
  * @param length : Length of the generated random DNA
  */
-Organism::Organism(int length, std::shared_ptr<std::mt19937_64> rng) {
+Organism::Organism(int length, std::shared_ptr<std::mt19937_64> rng, int level_) {
     rna_count_ = 0;
+    level_ = level_;
 
-    dna_ = new Dna(length, std::move(rng));
+    dna_ = new Dna(length, std::move(rng), level_);
 }
 
 /**
@@ -179,8 +180,9 @@ void Organism::compute_RNA() {
 
     rnas.resize(promoters_.size());
 
-    for (const auto &prom_pair: promoters_) {
-        int prom_pos = prom_pair.first;
+    for(int i = 0; i < promoters_.size(); i++) {
+        auto prom_pair = promoters_.begin();
+        int prom_pos = prom_pair->first;
 
         /* Search for terminators */
         int cur_pos = prom_pos + PROM_SIZE;
@@ -219,11 +221,10 @@ void Organism::compute_RNA() {
             if (rna_length > 0) {
                 int glob_rna_idx = rna_count_;
                 rna_count_ = rna_count_ + 1;
-
                 rnas[glob_rna_idx] = new RNA(
                         prom_pos,
                         rna_end,
-                        1.0 - std::fabs(((float) prom_pair.second)) / 5.0,
+                        1.0 - std::fabs(((float) prom_pair->second)) / 5.0,
                         rna_length);
             }
         }
@@ -253,12 +254,14 @@ void Organism::search_start_protein() {
 
 void Organism::compute_protein() {
     int resize_to = 0;
-
+    // This is a simple sum of the field of elements in a vector, we can use reduction to aggregate the sum
+#pragma omp parallel for reduction(+:resize_to) shared(rnas) if (level_ > 4) num_threads(4) default(none)
     for (int rna_idx = 0; rna_idx < rna_count_; rna_idx++) {
         resize_to += rnas[rna_idx]->start_prot.size();
     }
 
     proteins.resize(resize_to);
+
 
     for (int rna_idx = 0; rna_idx < rna_count_; rna_idx++) {
         auto* rna = rnas[rna_idx];
@@ -546,7 +549,6 @@ void Organism::compute_phenotype() {
             }
         }
     }
-
 
     for (int fuzzy_idx = 0; fuzzy_idx < FUZZY_SAMPLING; fuzzy_idx++) {
         if (activ_phenotype[fuzzy_idx] > 1)

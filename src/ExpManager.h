@@ -91,16 +91,16 @@ private:
         return found_org;
     }
 
-    std::shared_ptr<Organism> *internal_organisms_;
-    std::shared_ptr<Organism> *prev_internal_organisms_;
+    std::shared_ptr<Organism> *internal_organisms_{};
+    std::shared_ptr<Organism> *prev_internal_organisms_{};
     std::shared_ptr<Organism> best_indiv;
 
-    int *next_generation_reproducer_;
+    int *next_generation_reproducer_{};
     DnaMutator **dna_mutator_array_;
 
-    int nb_indivs_;
+    int nb_indivs_{};
 
-    int seed_;
+    int seed_{};
     std::shared_ptr<std::mt19937_64> rng_;
 
     double *target;
@@ -109,11 +109,11 @@ private:
     Stats *stats_best = nullptr;
     Stats *stats_mean = nullptr;
 
-    int grid_height_;
-    int grid_width_;
+    int grid_height_{};
+    int grid_width_{};
 
 
-    double mutation_rate_;
+    double mutation_rate_{};
 
-    int backup_step_;
+    int backup_step_{};
 };

@@ -39,6 +39,10 @@ using namespace std;
 // For time tracing
 #include "lib/Timetracer.h"
 
+struct Case { double value; int index; };
+#pragma omp declare reduction(best : struct Case : omp_out = omp_in.value > omp_out.value ? omp_in : omp_out)
+
+
 /**
  * Constructor for initializing a new simulation
  *
@@ -108,16 +112,38 @@ ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutatio
     // Generate a random organism that is better than nothing
     double r_compare = 0;
 
-    while (r_compare >= 0) {
-        auto random_organism = std::make_shared<Organism>(init_length_dna, rng_);
-        random_organism->locate_promoters();
-        random_organism->evaluate(target);
-        internal_organisms_[0] = random_organism;
+    if (level_ > 3) {
+        while (r_compare >= 0) {
+            double metaerror = geometric_area;
+            bool stop = false;
+    #pragma omp parallel for shared(rng_, level_, init_length_dna, metaerror, stop) if (level_ > 3) num_threads(4) default(none)
+            for (int i = 0; i < 128; i++) {
+                auto random_organism = std::make_shared<Organism>(init_length_dna, rng_, level_);
+                if (stop) continue;
+                random_organism->locate_promoters();
+                random_organism->evaluate(target);
+                #pragma omp critical
+                {
+                    if (random_organism->metaerror < metaerror) {
+                        stop = true;
+                        internal_organisms_[0] = random_organism;
+                    }
+                }
+            }
 
-        r_compare = round((random_organism->metaerror - geometric_area) * 1E10) / 1E10;
+            if (stop) r_compare = round((internal_organisms_[0]->metaerror - geometric_area) * 1E10) / 1E10;
+        }
+    } else {
+        while (r_compare >= 0) {
+            auto random_organism = std::make_shared<Organism>(init_length_dna, rng_, level_);
+            random_organism->locate_promoters();
+            random_organism->evaluate(target);
+            internal_organisms_[0] = random_organism;
+
+            r_compare = round((random_organism->metaerror - geometric_area) * 1E10) / 1E10;
+        }
     }
 
-//    internal_organisms_[0]->print_info();
 
     printf("Populating the environment\n");
 
@@ -204,8 +230,6 @@ void ExpManager::save(int t) const {
         prev_internal_organisms_[indiv_id]->save(exp_backup_file);
     }
 
-    //rng_->save(exp_backup_file);
-
     if (gzclose(exp_backup_file) != Z_OK) {
         cerr << "Error while closing backup file" << endl;
     }
@@ -272,8 +296,7 @@ void ExpManager::load(int t) {
                 std::make_shared<Organism>(exp_backup_file);
     }
 
-    //rng_ = std::move(std::make_unique<Threefry>(grid_width_, grid_height_, exp_backup_file));
-    seed_ = 1892873; //rng_->get_seed();
+    seed_ = 1892873;
     rng_ = std::move(std::make_unique<std::mt19937_64>(seed_));
 
     if (gzclose(exp_backup_file) != Z_OK) {
@@ -312,7 +335,7 @@ void ExpManager::selection(int indiv_id) const {
 
     int cur_x, cur_y;
 
-    // This for loop has only 9 iterations so it is not worth to parallelize it
+    // This for loop has only 9 iterations, so it is not worth to parallelize it
     for (int8_t i = -1; i < NEIGHBORHOOD_WIDTH - 1; i++) {
         for (int8_t j = -1; j < NEIGHBORHOOD_HEIGHT - 1; j++) {
             cur_x = (x + i + grid_width_) % grid_width_;
@@ -325,7 +348,7 @@ void ExpManager::selection(int indiv_id) const {
         }
     }
 
-    // This for loop has only 9 iterations so it is not worth to parallelize it
+    // This for loop has only 9 iterations, so it is not worth to parallelize it
     for (int8_t i = 0; i < NEIGHBORHOOD_SIZE; i++) {
         probs[i] = local_fit_array[i] / sum_local_fit;
     }
@@ -345,7 +368,6 @@ void ExpManager::selection(int indiv_id) const {
  * @param indiv_id : Organism unique id
  */
 void ExpManager::prepare_mutation(int indiv_id) const {
-    //auto *rng = new Threefry::Gen(std::move(rng_->gen(indiv_id, Threefry::MUTATION)));
     const shared_ptr<Organism> &parent = prev_internal_organisms_[next_generation_reproducer_[indiv_id]];
     dna_mutator_array_[indiv_id] = new DnaMutator(
             rng_,
@@ -370,7 +392,7 @@ void ExpManager::prepare_mutation(int indiv_id) const {
 void ExpManager::run_a_step() {
 
     // Running the simulation process for each organism
-    #pragma omp parallel for shared(dna_mutator_array_) if (level_ > 0) num_threads(4)
+    #pragma omp parallel for shared(dna_mutator_array_) if (level_ > 0) num_threads(4) default(none)
     for (int indiv_id = 0; indiv_id < nb_indivs_; indiv_id++) {
         selection(indiv_id);
         prepare_mutation(indiv_id);
@@ -383,25 +405,20 @@ void ExpManager::run_a_step() {
     }
 
     // Swap Population
-    #pragma omp parallel for shared(prev_internal_organisms_, internal_organisms_) if (level_ > 1) num_threads(4)
+    #pragma omp parallel for shared(prev_internal_organisms_, internal_organisms_) if (level_ > 1) num_threads(4) default(none)
     for (int indiv_id = 0; indiv_id < nb_indivs_; indiv_id++) {
         prev_internal_organisms_[indiv_id] = internal_organisms_[indiv_id];
         internal_organisms_[indiv_id] = nullptr;
     }
 
     // Search for the best
-    struct Case { float value; int index; };    
-    #pragma omp declare reduction(best : struct Case : omp_out = omp_in.value > omp_out.value ? omp_in : omp_out)
+    struct Case best_fitness = { .value =  prev_internal_organisms_[0]->fitness, .index =  0 };
 
-    struct Case best_fitness; 
-    best_fitness.value = prev_internal_organisms_[0]->fitness;
-    best_fitness.index = 0;
-
-    #pragma omp parallel for reduction(best:best_fitness) shared(prev_internal_organisms_, internal_organisms_) if (level_ > 1) num_threads(4)
+    #pragma omp parallel for reduction(best:best_fitness) shared(prev_internal_organisms_, internal_organisms_) if (level_ > 1) num_threads(4) default(none)
     for (int indiv_id = 1; indiv_id < nb_indivs_; indiv_id++) {
         if (prev_internal_organisms_[indiv_id]->fitness > best_fitness.value) {
-            best_fitness.index = indiv_id;
             best_fitness.value = prev_internal_organisms_[indiv_id]->fitness;
+            best_fitness.index = indiv_id;
         }
     }
     best_indiv = prev_internal_organisms_[best_fitness.index];
@@ -426,7 +443,7 @@ void ExpManager::run_a_step() {
  * @param nb_gen : Number of generations to simulate
  */
 void ExpManager::run_evolution(int nb_gen) {
-    INIT_TRACER("trace.csv", {"FirstEvaluation", "STEP"});
+    INIT_TRACER("trace.csv", {"FirstEvaluation", "STEP"})
 
     TIMESTAMP(0, {
         for (int indiv_id = 0; indiv_id < nb_indivs_; indiv_id++) {
@@ -434,7 +451,7 @@ void ExpManager::run_evolution(int nb_gen) {
             prev_internal_organisms_[indiv_id]->evaluate(target);
             prev_internal_organisms_[indiv_id]->compute_protein_stats();
         }
-    });
+    })
     FLUSH_TRACES(0)
 
     // Stats

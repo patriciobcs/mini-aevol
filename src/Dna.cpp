@@ -6,9 +6,13 @@
 
 #include <cassert>
 
-Dna::Dna(int length, std::shared_ptr<std::mt19937_64> rng) : seq_(length) {
+Dna::Dna(int length, std::shared_ptr<std::mt19937_64> rng, int level_) : seq_(length) {
+    level_ = level_;
+
     // Generate a random genome
     std::uniform_int_distribution<> distrib(0, 1);
+
+#pragma omp parallel shared(seq_, rng, distrib, length) default(none) num_threads(4) if (level_ > 2)
     for (int32_t i = 0; i < length; i++) {
         seq_[i] = '0' + distrib(*rng);
     }
@@ -124,42 +128,15 @@ void Dna::do_duplication(int pos_1, int pos_2, int pos_3) {
 }
 
 int Dna::promoter_at(int pos) {
-    int prom_dist[PROM_SIZE];
-
+    int dist_lead = 0;
+    
     for (int motif_id = 0; motif_id < PROM_SIZE; motif_id++) {
         int search_pos = pos + motif_id;
         if (search_pos >= seq_.size())
             search_pos -= seq_.size();
         // Searching for the promoter
-        prom_dist[motif_id] =
-                PROM_SEQ[motif_id] == seq_[search_pos] ? 0 : 1;
-
+        dist_lead += PROM_SEQ[motif_id] == seq_[search_pos] ? 0 : 1;
     }
-
-
-    // Computing if a promoter exists at that position
-    int dist_lead = prom_dist[0] +
-                    prom_dist[1] +
-                    prom_dist[2] +
-                    prom_dist[3] +
-                    prom_dist[4] +
-                    prom_dist[5] +
-                    prom_dist[6] +
-                    prom_dist[7] +
-                    prom_dist[8] +
-                    prom_dist[9] +
-                    prom_dist[10] +
-                    prom_dist[11] +
-                    prom_dist[12] +
-                    prom_dist[13] +
-                    prom_dist[14] +
-                    prom_dist[15] +
-                    prom_dist[16] +
-                    prom_dist[17] +
-                    prom_dist[18] +
-                    prom_dist[19] +
-                    prom_dist[20] +
-                    prom_dist[21];
 
     return dist_lead;
 }
@@ -168,6 +145,7 @@ int Dna::promoter_at(int pos) {
 // a terminator look like : a b c d X X !d !c !b !a
 int Dna::terminator_at(int pos) {
     int term_dist[TERM_STEM_SIZE];
+
     for (int motif_id = 0; motif_id < TERM_STEM_SIZE; motif_id++) {
         int right = pos + motif_id;
         int left = pos + (TERM_SIZE - 1) - motif_id;

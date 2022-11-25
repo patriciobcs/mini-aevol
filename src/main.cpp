@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
         if (backup_step == -1)
             backup_step = 1000;
         if (seed == -1)
-            seed = 566545665;
+            seed = 1892873;
     }
 
     Abstract_ExpManager *exp_manager;

@@ -19,7 +19,7 @@ public:
 
     Dna(const Dna &clone) = default;
 
-    Dna(int length, std::shared_ptr<std::mt19937_64> rng);
+    Dna(int length, std::shared_ptr<std::mt19937_64> rng, int level_);
 
     ~Dna() = default;
 
@@ -55,4 +55,6 @@ public:
     int codon_at(int pos);
 
     std::vector<char> seq_;
+
+    int level_;
 };
