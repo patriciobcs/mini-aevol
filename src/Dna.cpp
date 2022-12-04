@@ -6,13 +6,13 @@
 
 #include <cassert>
 
-Dna::Dna(int length, std::shared_ptr<std::mt19937_64> rng, int level_) : seq_(length) {
+Dna::Dna(int length, std::shared_ptr<std::mt19937_64> rng, int level_, int n_threads) : seq_(length) {
     level_ = level_;
 
     // Generate a random genome
     std::uniform_int_distribution<> distrib(0, 1);
 
-#pragma omp parallel shared(seq_, rng, distrib, length) default(none) num_threads(4) if (level_ > 2)
+#pragma omp parallel shared(seq_, rng, distrib, length) default(none) num_threads(n_threads) if (level_ > 2)
     for (int32_t i = 0; i < length; i++) {
         seq_[i] = '0' + distrib(*rng);
     }

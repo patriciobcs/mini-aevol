@@ -19,7 +19,7 @@ public:
 
     Dna(const Dna &clone) = default;
 
-    Dna(int length, std::shared_ptr<std::mt19937_64> rng, int level_);
+    Dna(int length, std::shared_ptr<std::mt19937_64> rng, int level_, int n_threads);
 
     ~Dna() = default;
 

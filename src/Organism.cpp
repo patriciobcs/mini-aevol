@@ -36,11 +36,12 @@ using namespace std;
  *
  * @param length : Length of the generated random DNA
  */
-Organism::Organism(int length, std::shared_ptr<std::mt19937_64> rng, int level_) {
+Organism::Organism(int length, std::shared_ptr<std::mt19937_64> rng, int level_, int n_threads) {
     rna_count_ = 0;
     level_ = level_;
+    n_threads_ = n_threads;
 
-    dna_ = new Dna(length, std::move(rng), level_);
+    dna_ = new Dna(length, std::move(rng), level_, n_threads_);
 }
 
 /**
@@ -255,7 +256,7 @@ void Organism::search_start_protein() {
 void Organism::compute_protein() {
     int resize_to = 0;
     // This is a simple sum of the field of elements in a vector, we can use reduction to aggregate the sum
-#pragma omp parallel for reduction(+:resize_to) shared(rnas) if (level_ > 4) num_threads(4) default(none)
+#pragma omp parallel for reduction(+:resize_to) shared(rnas) if (level_ > 4) num_threads(n_threads_) default(none)
     for (int rna_idx = 0; rna_idx < rna_count_; rna_idx++) {
         resize_to += rnas[rna_idx]->start_prot.size();
     }

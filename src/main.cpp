@@ -73,6 +73,7 @@ void print_help(char *prog_path)
     printf("  -r, --resume RESUME_STEP\tResume the simulation from the RESUME_STEP generations\n");
     printf("  -s, --seed SEED\tChange the seed for the pseudo random generator\n");
     printf("  -p, --parallelization PARALLELIZATION\tParallelization level\n");
+    printf("  -t, --threads THREADS\tNumber of threads to use\n");
 }
 
 int main(int argc, char *argv[])
@@ -86,8 +87,9 @@ int main(int argc, char *argv[])
     int backup_step = -1;
     int seed = -1;
     int level = -1;
+    int n_threads = -1;
 
-    const char *options_list = "Hn:w:h:m:g:b:r:s:p:";
+    const char *options_list = "Hn:w:h:m:g:b:r:s:p:t:";
     static struct option long_options_list[] = {
         // Print help
         {"help", no_argument, NULL, 'H'},
@@ -109,6 +111,8 @@ int main(int argc, char *argv[])
         {"seed", required_argument, NULL, 's'},
         // Parallelization level
         {"parallelization", required_argument, NULL, 'p'},
+        // Number of threads
+        {"n_threads", required_argument, NULL, 't'},
         {0, 0, 0, 0}};
 
     // -------------------------------------------------------------------------
@@ -170,6 +174,11 @@ int main(int argc, char *argv[])
             level = atoi(optarg);
             break;
         }
+        case 't':
+        {
+            n_threads = atoi(optarg);
+            break;
+        }
         default:
         {
             // An error message is printed in getopt_long, we just need to exit
@@ -208,12 +217,14 @@ int main(int argc, char *argv[])
             backup_step = 1000;
         if (seed == -1)
             seed = 1892873;
+        if (n_threads == -1)
+            n_threads = 4;
     }
 
     Abstract_ExpManager *exp_manager;
     if (resume == -1)
     {
-        exp_manager = new ExpManager(height, width, seed, mutation_rate, genome_size, backup_step, level);
+        exp_manager = new ExpManager(height, width, seed, mutation_rate, genome_size, backup_step, level, n_threads);
     }
     else
     {

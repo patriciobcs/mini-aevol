@@ -55,9 +55,10 @@ struct Case { double value; int index; };
  * @param backup_step : How much often checkpoint must be done
  */
 ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutation_rate, int init_length_dna,
-                       int backup_step, int level)
+                       int backup_step, int level, int n_threads)
         : seed_(seed), rng_(new std::mt19937_64(seed))  {
     level_ = level;
+    n_threads_ = n_threads;
 
     // Initializing the data structure
     grid_height_ = grid_height;
@@ -116,9 +117,9 @@ ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutatio
         while (r_compare >= 0) {
             double metaerror = geometric_area;
             bool stop = false;
-    #pragma omp parallel for shared(rng_, level_, init_length_dna, metaerror, stop) if (level_ > 3) num_threads(4) default(none)
+    #pragma omp parallel for shared(rng_, level_, init_length_dna, metaerror, stop) if (level_ > 3) num_threads(n_threads_) default(none)
             for (int i = 0; i < 128; i++) {
-                auto random_organism = std::make_shared<Organism>(init_length_dna, rng_, level_);
+                auto random_organism = std::make_shared<Organism>(init_length_dna, rng_, level_, n_threads_);
                 if (stop) continue;
                 random_organism->locate_promoters();
                 random_organism->evaluate(target);
@@ -135,7 +136,7 @@ ExpManager::ExpManager(int grid_height, int grid_width, int seed, double mutatio
         }
     } else {
         while (r_compare >= 0) {
-            auto random_organism = std::make_shared<Organism>(init_length_dna, rng_, level_);
+            auto random_organism = std::make_shared<Organism>(init_length_dna, rng_, level_, n_threads_);
             random_organism->locate_promoters();
             random_organism->evaluate(target);
             internal_organisms_[0] = random_organism;
@@ -392,7 +393,7 @@ void ExpManager::prepare_mutation(int indiv_id) const {
 void ExpManager::run_a_step() {
 
     // Running the simulation process for each organism
-    #pragma omp parallel for shared(dna_mutator_array_) if (level_ > 0) num_threads(4) default(none)
+    #pragma omp parallel for shared(dna_mutator_array_) if (level_ > 0) num_threads(n_threads_) default(none)
     for (int indiv_id = 0; indiv_id < nb_indivs_; indiv_id++) {
         selection(indiv_id);
         prepare_mutation(indiv_id);
@@ -405,7 +406,7 @@ void ExpManager::run_a_step() {
     }
 
     // Swap Population
-    #pragma omp parallel for shared(prev_internal_organisms_, internal_organisms_) if (level_ > 1) num_threads(4) default(none)
+    #pragma omp parallel for shared(prev_internal_organisms_, internal_organisms_) if (level_ > 1) num_threads(n_threads_) default(none)
     for (int indiv_id = 0; indiv_id < nb_indivs_; indiv_id++) {
         prev_internal_organisms_[indiv_id] = internal_organisms_[indiv_id];
         internal_organisms_[indiv_id] = nullptr;
@@ -414,7 +415,7 @@ void ExpManager::run_a_step() {
     // Search for the best
     struct Case best_fitness = { .value =  prev_internal_organisms_[0]->fitness, .index =  0 };
 
-    #pragma omp parallel for reduction(best:best_fitness) shared(prev_internal_organisms_, internal_organisms_) if (level_ > 1) num_threads(4) default(none)
+    #pragma omp parallel for reduction(best:best_fitness) shared(prev_internal_organisms_, internal_organisms_) if (level_ > 1) num_threads(n_threads_) default(none)
     for (int indiv_id = 1; indiv_id < nb_indivs_; indiv_id++) {
         if (prev_internal_organisms_[indiv_id]->fitness > best_fitness.value) {
             best_fitness.value = prev_internal_organisms_[indiv_id]->fitness;
