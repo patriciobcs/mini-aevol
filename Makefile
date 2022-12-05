@@ -8,6 +8,11 @@ setup:
 	mkdir $(PWD)/build
 	cd $(PWD)/build && cmake .. -DCMAKE_OSX_ARCHITECTURES=arm64 && make
 
+setup-x:
+	rm -rf $(PWD)/build
+	mkdir $(PWD)/build
+	cd $(PWD)/build && cmake .. -DCMAKE_OSX_ARCHITECTURES=x86_64 && make
+
 compile:
 	cd $(PWD)/build/ && make
 

@@ -39,9 +39,13 @@ using namespace std;
 // For time tracing
 #include "lib/Timetracer.h"
 
-struct Case { double value; int index; };
-#pragma omp declare reduction(best : struct Case : omp_out = omp_in.value > omp_out.value ? omp_in : omp_out)
-
+typedef struct Case
+{
+    double value;
+    int index;
+} Cases;
+#pragma omp declare reduction(best:Cases \
+                              : omp_out = omp_in.value > omp_out.value ? omp_in : omp_out)
 
 /**
  * Constructor for initializing a new simulation
